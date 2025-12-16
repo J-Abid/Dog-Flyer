@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor Volantino A4 - Creative Dark Mode</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Quicksand:wght@400;500;700&display=swap');
+
+        /* --- THEME VARIABLES --- */
+        :root {
+            /* Light Mode Defaults */
+            --primary-color: #ea580c;
+            /* Orange */
+            --contrast-color: #fff7ed;
+            /* Cream */
+            --text-main: #111827;
+            /* Black */
+            --text-sub: #4b5563;
+            /* Gray */
+            --bg-paper: #ffffff;
+            /* White */
+            --bg-glass: rgba(255, 255, 255, 0.9);
+            /* White Glass */
+            --border-glass: rgba(255, 255, 255, 0.2);
+        }
+
+        /* --- CREATIVE DARK MODE OVERRIDES --- */
+        body.dark-mode {
+            /* These update the CSS variables when the class is active */
+            --bg-paper: #0f172a;
+            /* Deep Midnight Blue */
+            --bg-glass: rgba(30, 41, 59, 0.7);
+            /* Dark Glass */
+            --border-glass: rgba(255, 255, 255, 0.1);
+
+            /* Note: The JS Toggle function also updates the 4 main pickers inline,
+               so we sync these defaults here just for reference */
+            --primary-color: #22d3ee;
+            /* Cyan */
+            --contrast-color: #1e293b;
+            /* Slate 800 */
+            --text-main: #f8fafc;
+            /* White */
+            --text-sub: #94a3b8;
+            /* Blue-Gray */
+        }
+
+        /* --- LAYOUT --- */
+        body {
+            background-color: #222;
+            font-family: 'Quicksand', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding-top: 80px;
+            padding-bottom: 40px;
+            transition: background-color 0.3s;
+        }
+
+        .page {
+            width: 210mm;
+            height: 297mm;
+            position: relative;
+            background-color: var(--bg-paper);
+            /* Ensures the sheet changes color */
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Utility Classes */
+        .theme-text-primary {
+            color: var(--primary-color) !important;
+        }
+
+        .theme-bg-primary {
+            background-color: var(--primary-color) !important;
+        }
+
+        .theme-bg-contrast {
+            background-color: var(--contrast-color) !important;
+        }
+
+        .theme-bg-paper {
+            background-color: var(--bg-paper) !important;
+        }
+
+        .theme-text-main {
+            color: var(--text-main) !important;
+        }
+
+        .theme-text-sub {
+            color: var(--text-sub) !important;
+        }
+
+        .theme-border-primary {
+            border-color: var(--primary-color) !important;
+        }
+
+        /* New Glass Class for Pills */
+        .theme-glass {
+            background-color: var(--bg-glass) !important;
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--border-glass);
+        }
+
+        /* --- TEXT EDITOR TOOLBAR --- */
+        .text-toolbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            z-index: 1000;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .toolbar-group {
+            display: flex;
+            gap: 5px;
+            border-right: 1px solid #e5e7eb;
+            padding-right: 15px;
+            align-items: center;
+        }
+
+        .toolbar-group:last-child {
+            border-right: none;
+        }
+
+        .tool-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            background: #f3f4f6;
+            color: #374151;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tool-btn:hover {
+            background: #e5e7eb;
+            border-color: #d1d5db;
+        }
+
+        .tool-btn:active {
+            background: #d1d5db;
+        }
+
+        .tool-btn i {
+            font-size: 14px;
+        }
+
+        .tool-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #9ca3af;
+            text-transform: uppercase;
+            margin-right: 8px;
+        }
+
+        /* --- SETTINGS PANEL --- */
+        .settings-panel {
+            position: fixed;
+            left: 20px;
+            top: 55%;
+            transform: translateY(-50%);
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 100;
+            width: 230px;
+        }
+
+        .picker-group label {
+            display: block;
+            font-size: 11px;
+            font-weight: 800;
+            color: #6b7280;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+
+        .picker-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f3f4f6;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        input[type="color"] {
+            border: none;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            background: none;
+            border-radius: 4px;
+        }
+
+        /* --- IMAGE EDITOR --- */
+        .img-container {
+            position: relative;
+            background-color: #e5e7eb;
+            cursor: crosshair;
+            overflow: hidden;
+            border: 2px dashed #9ca3af;
+            transition: all 0.3s;
+        }
+
+        .img-container:hover {
+            border-color: var(--primary-color);
+        }
+
+        .cropper-view-box {
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        .cropper-line {
+            background-color: transparent !important;
+        }
+
+        .cropper-point {
+            display: none !important;
+        }
+
+        .cropper-modal {
+            opacity: 0 !important;
+        }
+
+        .editor-controls {
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            display: flex;
+            gap: 15px;
+            position: absolute;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 50;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .img-container:hover .editor-controls {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Editable Text Active State */
+        [contenteditable="true"]:focus {
+            outline: 2px dashed var(--primary-color);
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        [contenteditable="true"]:hover {
+            outline: 1px dashed #9ca3af;
+        }
+
+        /* --- PRINT SETTINGS --- */
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        @media print {
+            body {
+                background: none;
+                padding: 0;
+                margin: 0;
+                display: block;
+            }
+
+            .page {
+                box-shadow: none;
+                width: 210mm;
+                height: 297mm;
+                margin: 0 auto;
+                page-break-after: avoid;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .settings-panel,
+            .editor-controls,
+            .text-toolbar,
+            .no-print {
+                display: none !important;
+            }
+
+            .img-container {
+                border: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="text-toolbar no-print">
+        <div class="flex items-center">
+            <span class="tool-label text-gray-400">Editor Testo</span>
+        </div>
+
+        <div class="toolbar-group">
+            <button class="tool-btn" onmousedown="formatText('bold')" title="Grassetto"><i
+                    class="fas fa-bold"></i></button>
+            <button class="tool-btn" onmousedown="formatText('italic')" title="Corsivo"><i
+                    class="fas fa-italic"></i></button>
+            <button class="tool-btn" onmousedown="formatText('underline')" title="Sottolineato"><i
+                    class="fas fa-underline"></i></button>
+        </div>
+
+        <div class="toolbar-group">
+            <button class="tool-btn" onmousedown="formatText('justifyLeft')" title="Allinea Sx"><i
+                    class="fas fa-align-left"></i></button>
+            <button class="tool-btn" onmousedown="formatText('justifyCenter')" title="Centra"><i
+                    class="fas fa-align-center"></i></button>
+            <button class="tool-btn" onmousedown="formatText('justifyRight')" title="Allinea Dx"><i
+                    class="fas fa-align-right"></i></button>
+        </div>
+
+        <div class="toolbar-group">
+            <span class="tool-label">Dimensione</span>
+            <button class="tool-btn" onmousedown="resizeText(1)" title="Aumenta"><i class="fas fa-plus"></i></button>
+            <button class="tool-btn" onmousedown="resizeText(-1)" title="Diminuisci"><i
+                    class="fas fa-minus"></i></button>
+        </div>
+    </div>
+
+    <div class="settings-panel no-print">
+        <h3 class="font-bold text-gray-800 text-lg border-b pb-2 mb-2">Colori & Tema</h3>
+
+        <div class="picker-group">
+            <label>Accento / Icone</label>
+            <div class="picker-wrapper">
+                <input type="color" id="primaryPicker" value="#ea580c">
+                <span class="text-xs text-gray-500">Principale</span>
+            </div>
+        </div>
+
+        <div class="picker-group">
+            <label>Sfondo Header/Footer</label>
+            <div class="picker-wrapper">
+                <input type="color" id="contrastPicker" value="#fff7ed">
+                <span class="text-xs text-gray-500">Contrasto</span>
+            </div>
+        </div>
+
+        <div class="picker-group">
+            <label>Titoli</label>
+            <div class="picker-wrapper">
+                <input type="color" id="textMainPicker" value="#111827">
+                <span class="text-xs text-gray-500">Titoli</span>
+            </div>
+        </div>
+
+        <div class="picker-group">
+            <label>Testo</label>
+            <div class="picker-wrapper">
+                <input type="color" id="textSubPicker" value="#4b5563">
+                <span class="text-xs text-gray-500">Paragrafi</span>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between border-t pt-4 mt-2">
+            <label class="text-xs font-bold text-gray-500 uppercase">Creative Dark Mode</label>
+            <button onclick="toggleDarkMode()" id="darkModeBtn"
+                class="bg-gray-200 w-10 h-5 rounded-full relative transition-colors duration-300">
+                <div id="toggleCircle"
+                    class="bg-white w-3 h-3 rounded-full absolute top-1 left-1 transition-transform duration-300 shadow-sm">
+                </div>
+            </button>
+        </div>
+    </div>
+
+    <div class="page" id="flyer-content">
+
+        <header class="theme-bg-contrast relative h-[35%] w-full flex transition-colors duration-300 shrink-0">
+            <div class="w-1/2 p-8 flex flex-col justify-center z-10">
+                <div
+                    class="theme-bg-primary text-white border-opacity-30 inline-block px-4 py-1.5 rounded-full text-xs font-bold mb-3 w-max uppercase tracking-wider shadow-sm">
+                    <span contenteditable="true">Adozione Gratuita • Napoli</span>
+                </div>
+
+                <h1 class="text-5xl font-extrabold theme-text-main leading-tight mb-3 font-[Nunito]">
+                    <span contenteditable="true">Ciao, sono</span> <br>
+                    <span class="theme-text-primary" contenteditable="true">Hachiko</span>
+                </h1>
+
+                <p class="theme-text-sub text-base leading-relaxed mb-4" contenteditable="true">
+                    Un protettore leale, un'anima gentile e un "ombra personale". Cerco una famiglia per sempre a causa
+                    di un trasferimento.
+                </p>
+
+                <div class="flex flex-wrap gap-2 text-xs font-bold theme-text-sub">
+                    <span
+                        class="theme-glass px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 transition-colors duration-300">
+                        <i class="fas fa-mars text-blue-500"></i> <span contenteditable="true">Maschio</span>
+                    </span>
+                    <span
+                        class="theme-glass px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 transition-colors duration-300">
+                        <i class="fas fa-birthday-cake theme-text-primary"></i> <span contenteditable="true">7
+                            Anni</span>
+                    </span>
+                    <span
+                        class="theme-glass px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 transition-colors duration-300">
+                        <i class="fas fa-weight text-green-500"></i> <span contenteditable="true">18 kg</span>
+                    </span>
+                </div>
+            </div>
+
+            <div class="w-1/2 relative h-full">
+                <div class="absolute inset-0 theme-bg-primary opacity-10 rounded-l-[100px]"></div>
+                <div class="img-container w-full h-full relative" ondblclick="triggerUpload('upload1')">
+                    <img id="img1"
+                        src="https://cdn.petzlover.com/responsive/600x600/petzlover/gallery/img/l/mixed-2615098.jpg"
+                        class="w-full h-full object-cover block">
+                    <input type="file" id="upload1" class="file-input" style="display:none;" accept="image/*"
+                        onchange="loadImage(event, 'img1')">
+                    <div class="editor-controls no-print">
+                        <button onclick="zoom(event, 'img1', 0.1)"><i class="fas fa-plus"></i></button>
+                        <button onclick="zoom(event, 'img1', -0.1)"><i class="fas fa-minus"></i></button>
+                        <button onclick="rotate(event, 'img1', 90)"><i class="fas fa-redo"></i></button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex-1 p-6 flex flex-col justify-between transition-colors duration-300">
+
+            <div class="flex gap-8">
+                <div class="w-2/3">
+                    <h2 class="text-2xl font-bold theme-text-main mb-4 border-b-2 theme-border-primary pb-1 inline-block"
+                        contenteditable="true">Perché Scegliermi</h2>
+                    <ul class="space-y-4">
+                        <li class="flex items-start gap-3">
+                            <div class="theme-bg-primary p-2.5 rounded-full text-white text-xs mt-0.5"><i
+                                    class="fas fa-shield-dog"></i></div>
+                            <div>
+                                <h4 class="font-bold text-base theme-text-main" contenteditable="true">Protettore Leale
+                                </h4>
+                                <p class="text-xs theme-text-sub leading-relaxed" contenteditable="true">Adoro starti
+                                    vicino e vegliare sulla famiglia. Sono la tua ombra fedele.</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <div class="theme-bg-primary p-2.5 rounded-full text-white text-xs mt-0.5"><i
+                                    class="fas fa-home"></i></div>
+                            <div>
+                                <h4 class="font-bold text-base theme-text-main" contenteditable="true">Perfetto in Casa
+                                </h4>
+                                <p class="text-xs theme-text-sub leading-relaxed" contenteditable="true">Abituato in
+                                    appartamento, educato, silenzioso e pulito.</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <div class="theme-bg-primary p-2.5 rounded-full text-white text-xs mt-0.5"><i
+                                    class="fas fa-heart"></i></div>
+                            <div>
+                                <h4 class="font-bold text-base theme-text-main" contenteditable="true">Dolce e
+                                    Intelligente</h4>
+                                <p class="text-xs theme-text-sub leading-relaxed" contenteditable="true">Imparo in
+                                    fretta. Giocherellone quando vuoi, calmo quando serve.</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="w-1/3 flex flex-col justify-center">
+                    <div class="theme-bg-contrast border-l-4 theme-border-primary p-4 rounded-r-xl shadow-sm">
+                        <p class="italic theme-text-sub text-sm text-center leading-relaxed" contenteditable="true">
+                            "È un cane d'oro... Non ho nessuna lamentela su di lui; è semplicemente fantastico."
+                        </p>
+                        <span class="font-bold text-xs not-italic mt-2 block theme-text-primary text-center"
+                            contenteditable="true">- Assunta (Proprietaria)</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 h-[240px] my-3">
+                <div class="img-container w-full h-full rounded-2xl overflow-hidden shadow-md bg-gray-100"
+                    ondblclick="triggerUpload('upload2')">
+                    <img id="img2"
+                        src="https://cdn.petzlover.com/responsive/220x220/petzlover/gallery/img/l/mixed-2615099.jpg"
+                        class="w-full h-full object-cover">
+                    <input type="file" id="upload2" class="file-input" style="display:none;" accept="image/*"
+                        onchange="loadImage(event, 'img2')">
+                    <div class="editor-controls no-print">
+                        <button onclick="zoom(event, 'img2', 0.1)"><i class="fas fa-plus"></i></button>
+                        <button onclick="zoom(event, 'img2', -0.1)"><i class="fas fa-minus"></i></button>
+                        <button onclick="rotate(event, 'img2', 90)"><i class="fas fa-redo"></i></button>
+                    </div>
+                </div>
+                <div class="img-container w-full h-full rounded-2xl overflow-hidden shadow-md bg-gray-100"
+                    ondblclick="triggerUpload('upload3')">
+                    <img id="img3"
+                        src="https://cdn.petzlover.com/responsive/220x220/petzlover/gallery/img/l/mixed-2615100.jpg"
+                        class="w-full h-full object-cover">
+                    <input type="file" id="upload3" class="file-input" style="display:none;" accept="image/*"
+                        onchange="loadImage(event, 'img3')">
+                    <div class="editor-controls no-print">
+                        <button onclick="zoom(event, 'img3', 0.1)"><i class="fas fa-plus"></i></button>
+                        <button onclick="zoom(event, 'img3', -0.1)"><i class="fas fa-minus"></i></button>
+                        <button onclick="rotate(event, 'img3', 90)"><i class="fas fa-redo"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                class="theme-bg-contrast p-5 rounded-2xl flex justify-between items-center shadow-lg border-t-4 theme-border-primary shrink-0">
+                <div class="space-y-1">
+                    <h3 class="text-xl font-bold theme-text-main" contenteditable="true">Contatta per l'adozione</h3>
+                    <p class="theme-text-sub text-xs" contenteditable="true">Vieni a conoscermi, mi trovo in Campania.
+                    </p>
+                    <div class="flex gap-4 mt-1 text-[10px] theme-text-sub font-semibold">
+                        <span contenteditable="true"><i class="fas fa-check text-green-500"></i> Microchippato</span>
+                        <span contenteditable="true"><i class="fas fa-check text-green-500"></i> Vaccinato</span>
+                    </div>
+                </div>
+
+                <div class="flex flex-col items-end gap-2">
+                    <div
+                        class="theme-bg-primary text-white px-4 py-1.5 rounded-full font-bold text-sm inline-flex items-center gap-2 shadow-md hover:scale-105 transition-transform cursor-pointer">
+                        <i class="fas fa-phone"></i>
+                        <span contenteditable="true">333 123 4567</span>
+                    </div>
+
+                    <div
+                        class="bg-[#25D366] text-white px-4 py-1.5 rounded-full font-bold text-sm inline-flex items-center gap-2 shadow-md hover:scale-105 transition-transform cursor-pointer">
+                        <i class="fab fa-whatsapp text-base"></i>
+                        <span contenteditable="true">333 987 6543</span>
+                    </div>
+
+                    <p class="text-[10px] theme-text-sub" contenteditable="true">Rif. Petzlover #653824</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="fixed bottom-5 right-5 flex gap-3 no-print z-50">
+        <button onclick="window.print()"
+            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full shadow-2xl font-bold flex items-center gap-2 transition-transform hover:scale-105">
+            <i class="fas fa-file-pdf"></i> Salva PDF
+        </button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <script>
+        // --- TEXT EDITOR LOGIC ---
+        let activeTextElement = null;
+
+        document.addEventListener('focusin', function (e) {
+            if (e.target.isContentEditable) {
+                activeTextElement = e.target;
+            }
+        });
+
+        function formatText(command) {
+            event.preventDefault();
+            document.execCommand(command, false, null);
+        }
+
+        function resizeText(amount) {
+            event.preventDefault();
+            if (!activeTextElement) return;
+            const style = window.getComputedStyle(activeTextElement, null).getPropertyValue('font-size');
+            const currentSize = parseFloat(style);
+            activeTextElement.style.fontSize = (currentSize + amount) + 'px';
+        }
+
+        // --- IMAGE EDITOR ---
+        const croppers = {};
+        function initCropper(imgId) {
+            const image = document.getElementById(imgId);
+            if (croppers[imgId]) croppers[imgId].destroy();
+            croppers[imgId] = new Cropper(image, {
+                viewMode: 0, dragMode: 'move', autoCropArea: 1, restore: false,
+                modal: false, guides: false, highlight: false,
+                cropBoxMovable: false, cropBoxResizable: false, toggleDragModeOnDblclick: false, background: false
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initCropper('img1'); initCropper('img2'); initCropper('img3');
+        });
+
+        function triggerUpload(inputId) {
+            if (!event.target.closest('button')) document.getElementById(inputId).click();
+        }
+
+        function loadImage(event, imgId) {
+            const input = event.target;
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const image = document.getElementById(imgId);
+                    if (croppers[imgId]) croppers[imgId].replace(e.target.result);
+                    else { image.src = e.target.result; initCropper(imgId); }
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+            input.value = '';
+        }
+
+        function zoom(e, imgId, ratio) { e.stopPropagation(); if (croppers[imgId]) croppers[imgId].zoom(ratio); }
+        function rotate(e, imgId, degree) { e.stopPropagation(); if (croppers[imgId]) croppers[imgId].rotate(degree); }
+
+        // --- THEME LOGIC ---
+        function setVar(name, val) { document.body.style.setProperty(name, val); }
+        document.getElementById('primaryPicker').addEventListener('input', e => setVar('--primary-color', e.target.value));
+        document.getElementById('contrastPicker').addEventListener('input', e => setVar('--contrast-color', e.target.value));
+        document.getElementById('textMainPicker').addEventListener('input', e => setVar('--text-main', e.target.value));
+        document.getElementById('textSubPicker').addEventListener('input', e => setVar('--text-sub', e.target.value));
+
+        function toggleDarkMode() {
+            const body = document.body;
+            body.classList.toggle('dark-mode');
+            const isDark = body.classList.contains('dark-mode');
+
+            // Animation
+            document.getElementById('toggleCircle').style.transform = isDark ? 'translateX(20px)' : 'translateX(0)';
+            document.getElementById('darkModeBtn').className = isDark ? 'bg-blue-600 w-10 h-5 rounded-full relative transition-colors duration-300' : 'bg-gray-200 w-10 h-5 rounded-full relative transition-colors duration-300';
+
+            // New Creative Palette (Cyber/Midnight) vs (Warm/Light)
+            const vars = isDark ?
+                ['#22d3ee', '#1e293b', '#f8fafc', '#94a3b8'] : // Dark: Cyan, Slate 800, White, Blue-Gray
+                ['#ea580c', '#fff7ed', '#111827', '#4b5563']; // Light: Orange, Cream, Black, Gray
+
+            // Update Pickers & Trigger Events to update inline styles
+            ['primaryPicker', 'contrastPicker', 'textMainPicker', 'textSubPicker'].forEach((id, i) => {
+                const el = document.getElementById(id);
+                el.value = vars[i];
+                el.dispatchEvent(new Event('input'));
+            });
+
+            // Also update non-picker variables manually if needed (CSS classes handle most)
+            // But just in case inline styles were set previously, we let the CSS class take over for BG paper
+            // by NOT setting --bg-paper inline here. The class body.dark-mode handles it.
+        }
+    </script>
+</body>
+
+</html>
